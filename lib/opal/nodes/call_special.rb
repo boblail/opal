@@ -118,7 +118,7 @@ module Opal
     end
 
     class LogicalOpAssignNode < Base
-      children :lhs, :rhs
+      children :lhs
 
       def compile
         get_node = case lhs.type
@@ -128,15 +128,41 @@ module Opal
         when :cvasgn then lhs.updated(:cvar)
         when :gvasgn then lhs.updated(:gvar)
         when :send
-          send_lhs, send_op, *send_args = lhs.children
-          sexp = expr s(:op_asgn1, send_lhs, s(:array, *send_args), send_op, rhs)
-          push sexp
+          compile_send
           return
         else
           raise "Unsupported node in LogicalOpAssignNode #{lhs.type}"
         end
         set_node = lhs.updated(nil, lhs.children + [rhs])
         sexp = s(evaluates_to, get_node, set_node)
+        push expr(sexp)
+      end
+
+      # RHS can be begin..end
+      # In this case we need to mark it so it will be wrapped with a function
+      def rhs
+        result = children.last
+        if [:begin, :kwbegin].include?(result.type)
+          result = result.updated(nil, nil, meta: { force_wrap: true })
+          result = compiler.returns(result)
+        end
+        result
+      end
+
+      def compile_send
+        send_lhs, send_op, *send_args = lhs.children
+        if send_op == :[]
+          # Here we should build a pseudo-node
+          # s(:op_asgn1, lhs, args, :||, rhs)
+          sexp = s(:op_asgn1, send_lhs, s(:array, *send_args), send_evaluates_to, rhs)
+        else
+          # Otherwise we have a.b ||= 1
+          # which doesn't have send_args,
+          # so we should build a pseudo-node
+          # s(:op_asgn2, lhs, :b=, :+, rhs)
+          send_op = (send_op.to_s + '=').to_sym
+          sexp = s(:op_asgn2, send_lhs, send_op, send_evaluates_to, rhs)
+        end
         push expr(sexp)
       end
 
@@ -162,6 +188,10 @@ module Opal
       def evaluates_to
         :or
       end
+
+      def send_evaluates_to
+        '||'
+      end
     end
 
     # a &&= rhs
@@ -181,6 +211,10 @@ module Opal
       def evaluates_to
         :and
       end
+
+      def send_evaluates_to
+        '&&'
+      end
     end
 
     class OpAsgnNode < Base
@@ -188,20 +222,42 @@ module Opal
       children :lhs, :op, :rhs
 
       def compile
-        get_sexp = case lhs.type
+        push expr(set_sexp)
+      end
+
+      def get_sexp
+        case lhs.type
         when :lvasgn then lhs.updated(:lvar)
         when :ivasgn then lhs.updated(:ivar)
         when :casgn  then lhs.updated(:const)
         when :cvasgn then lhs.updated(:cvar)
         when :gvasgn then lhs.updated(:gvar)
+        when :send   then lhs
+        else
           raise NotImplementedError
         end
-
-        new_rhs_sexp = s(:send, get_sexp, op, rhs)
-
-        set_sexp = lhs.updated(nil, lhs.children + [new_rhs_sexp])
-        push expr(set_sexp)
       end
+
+      def get_and_update_sexp
+        case lhs.type
+        when :lvasgn, :ivasgn, :casgn, :cvasgn, :gvasgn, :send
+          s(:send, get_sexp, op, rhs)
+        else
+          raise NotImplementedError
+        end
+      end
+
+      def set_sexp
+        case lhs.type
+        when :lvasgn, :ivasgn, :casgn, :cvasgn, :gvasgn
+          lhs.updated(nil, lhs.children + [get_and_update_sexp])
+        when :send
+          recvr, meth = lhs.children
+          meth = (meth.to_s + "=").to_sym
+          lhs.updated(nil, [recvr, meth, get_and_update_sexp])
+        end
+      end
+
     end
 
     # lhs[args] ||= rhs

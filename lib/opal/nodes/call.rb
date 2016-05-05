@@ -336,11 +336,11 @@ module Opal
           if type == :str
             return sexp.children[0]
           elsif type == :send
-            _, recv, meth, args = sexp
+            recv, meth, *args = sexp.children
 
-            parts = args.children.map { |s| handle_part s }
+            parts = args.map { |s| handle_part s }
 
-            if recv == [:const, :File]
+            if ::Parser::AST::Node === recv && recv.type == :const && recv.children.last == :File
               if meth == :expand_path
                 return expand_path(*parts)
               elsif meth == :join

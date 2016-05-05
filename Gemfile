@@ -18,7 +18,9 @@ gem 'rack', rack_version if rack_version
 gem 'tilt', tilt_version if tilt_version
 
 gem 'ast', github: 'iliabylich/ast'
-gem 'parser'
+# For now clone master branch of 'whitequark/parser' to '../parser'
+# And run "rake generate"
+gem 'parser', path: '../parser'
 
 group :repl do
   gem 'therubyracer', platform: :mri, require: 'v8'

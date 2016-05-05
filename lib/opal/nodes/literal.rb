@@ -132,7 +132,7 @@ module Opal
           when :str
             push Fragment.new(child.children[0], nil)
           when :begin
-            push process(child)
+            push expr(compiler.returns(child))
           when :gvar, :ivar
             push expr(child)
           else
@@ -167,7 +167,9 @@ module Opal
           #   push "("
           #   push expr(part)
           #   push ")"
-          elsif part.type == :dstr || part.type == :begin || part.type == :ivar
+          elsif part.type == :begin
+            push expr(compiler.returns(part))
+          elsif part.type == :dstr || part.type == :ivar
             push "(", expr(part), ")"
           else
             raise "Bad dstr part #{part.inspect}"

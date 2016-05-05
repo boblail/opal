@@ -20,7 +20,7 @@ module Opal
       end
 
       def wrap_with_definition
-        unshift "Opal.defs(self, '$#{mid}', "
+        unshift "Opal.defs(", expr(recvr), ", '$#{mid}', "
         push ")"
       end
     end

@@ -166,7 +166,7 @@ class OSpecRunner
         for (key in obj) {
           if (obj.hasOwnProperty(key)) {
             val = obj[key];
-            report += key.replace(/\s/g, '_') + ' ' + ((val.stopped - val.started) / 1000) + '\n';
+            report += key.replace(/\\s/g, '_') + ' ' + ((val.stopped - val.started) / 1000) + '\\n';
           }
         }
         require('fs').writeFileSync(self.bm_filepath, report);

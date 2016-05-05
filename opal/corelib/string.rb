@@ -79,7 +79,7 @@ class String < `String`
   def +(other)
     other = Opal.coerce_to other, String, :to_str
 
-    `self + #{other.to_s}`
+    `return self + #{other.to_s}`
   end
 
   def <=>(other)
@@ -1691,6 +1691,29 @@ class String < `String`
 
   def self._load(*args)
     self.new(*args)
+  end
+
+  def unpack(pattern)
+    %x{
+      function stringToBytes(string) {
+        var i,
+            singleByte,
+            l = string.length,
+            result = [];
+
+        for (i = 0; i < l; i++) {
+          singleByte = string.charCodeAt(i);
+          result.push(singleByte);
+        }
+        return result;
+      }
+    }
+    case pattern
+    when "U*", "C*"
+      `return stringToBytes(self);`
+    else
+      raise NotImplementedError
+    end
   end
 end
 

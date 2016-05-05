@@ -7,7 +7,7 @@ class File
         var lines = Files.readAllLines(Paths.get(path), Java.type('java.nio.charset.StandardCharsets').UTF_8);
         var data = [];
         lines.forEach(function(line) { data.push(line); });
-        return data.join("\n");
+        return data.join("\\n");
       )
   end
 end

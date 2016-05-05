@@ -738,7 +738,7 @@ class Array < `Array`
 
       if (self.length === original) {
         if (#{block_given?}) {
-          return #{yield};
+          #{yield};
         }
         return nil;
       }

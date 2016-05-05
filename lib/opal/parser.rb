@@ -1,31 +1,31 @@
 require 'ast'
 require 'parser/ruby23'
 
-module Opal
-  class ::Parser::AST::Node
-    attr_reader :meta
+::Parser::AST::Node.class_eval do
+  attr_reader :meta
 
-    alias_method :old_assign_properties, :assign_properties
-    def assign_properties(properties)
-      if meta = properties[:meta]
-        meta = meta.dup if meta.frozen?
-        @meta.merge!(meta)
-      else
-        @meta ||= {}
-      end
-
-      old_assign_properties(properties)
+  alias_method :old_assign_properties, :assign_properties
+  def assign_properties(properties)
+    if meta = properties[:meta]
+      meta = meta.dup if meta.frozen?
+      @meta.merge!(meta)
+    else
+      @meta ||= {}
     end
 
-    def line
-      loc.line if loc
-    end
-
-    def column
-      loc.column if loc
-    end
+    old_assign_properties(properties)
   end
 
+  def line
+    loc.line if loc
+  end
+
+  def column
+    loc.column if loc
+  end
+end
+
+module Opal
   class Parser < ::Parser::Ruby23
     def parse(source, file = '(string)')
       # Legacy support

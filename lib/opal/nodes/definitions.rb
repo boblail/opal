@@ -61,20 +61,57 @@ module Opal
 
       def compile
         return push "nil" if children.empty?
-        if !stmt?
-          in_scope { compile_body }
+
+        optimize_returning_one_child if simple_block?
+
+        compile_body
+
+        return if stmt?
+
+        if wrap_with_function?
           wrap '(function() {', '})()'
-        else
-          compile_body
+        elsif wrapping?
+          wrap '(', ')'
         end
       end
 
-      def compile_body
-        children[0..-2].each do |child|
-          line stmt(child), ';'
+      def simple_block?
+        children.length == 1
+      end
+
+      def wrap_with_function?
+        @sexp.meta[:force_wrap] ||
+          [:return, :js_return, :rescue, :if].include?(children.last.type)
+      end
+
+      def optimize_returning_one_child
+        only_child = children.last
+
+        if only_child.type == :js_return
+          only_child = only_child.children[0]
         end
 
-        line stmt(compiler.returns(children.last))
+        @sexp = @sexp.updated(nil, [only_child])
+      end
+
+      def compile_body
+        if @sexp.meta[:inline_block]
+          children.each_with_index do |child, idx|
+            push ',' unless idx == 0
+            push expr(child)
+          end
+        elsif simple_block?
+          push stmt(children.first)
+        else
+          children.each do |child|
+            line stmt(child), ';'
+          end
+        end
+      end
+
+      def wrapping?
+        simple_block? &&
+          ![:if, :return, :js_return, :returnable_yield, :rescue, :next].include?(children.last.type)
       end
     end
 

@@ -162,9 +162,9 @@ module Opal
       @fragments = process(@sexp).flatten
 
       @result = @fragments.map(&:code).join('')
-    rescue Exception => error
-      message = "An error occurred while compiling: #{self.file}\n#{error.message}"
-      raise error.class, message, error.backtrace
+    # rescue Exception => error
+    #   message = "An error occurred while compiling: #{self.file}\n#{error.message}"
+    #   raise error.class, message, error.backtrace
     end
 
     # Returns a source map that can be used in the browser to map back to
@@ -415,7 +415,7 @@ module Opal
         )
         # sexp[1] = returns sexp[1]
         # sexp
-      when :begin
+      when :begin, :kwbegin
         # Wrapping last expression with s(:js_return, ...)
         sexp.updated(
           nil,
