@@ -152,6 +152,8 @@ module Opal
       handle :dstr
 
       def compile
+        push '"" + '
+
         children.each_with_index do |part, idx|
           push " + " unless idx == 0
 

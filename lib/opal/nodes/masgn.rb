@@ -28,7 +28,6 @@ module Opal
           push "#{array} = Opal.to_a(", expr(rhs.children[0]), ")"
           compile_masgn(lhs.children, array)
           push ", #{array}"
-        # elsif rhs.type == :to_ary || rhs.type == :lvar || rhs.type == :send || rhs.type == :nil || rhs.type == :block || rhs.type == :ivar
         else
           retval = scope.new_temp
           push "#{retval} = ", expr(rhs)
@@ -36,8 +35,6 @@ module Opal
           compile_masgn(lhs.children, array)
           push ", #{retval}"
           scope.queue_temp(retval)
-          # binding.pry
-          # raise "unsupported mlhs type"
         end
 
         scope.queue_temp(array)
