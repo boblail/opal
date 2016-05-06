@@ -104,20 +104,28 @@ module Opal
 
       def compile_shadow_args
         shadow_args.each do |shadow_arg|
-          scope.add_local(shadow_arg.last)
+          arg_name = shadow_arg.children[0]
+          scope.add_local(arg_name)
         end
       end
 
       def extract_shadow_args
         @shadow_args = []
+        valid_args = []
         return unless args
 
         args.children.each_with_index do |arg, idx|
           if arg.type == :shadowarg
-            # TODO: remove parameter here from args here
             @shadow_args << arg
+          else
+            valid_args << arg
           end
         end
+
+        @sexp = @sexp.updated(nil, [
+          args.updated(nil, valid_args),
+          body
+        ])
       end
 
       # TODO: restore functionality that trims multiple _

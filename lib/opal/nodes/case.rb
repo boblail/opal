@@ -66,7 +66,7 @@ module Opal
           if check.type == :splat
             push "(function($splt) { for (var i = 0; i < $splt.length; i++) {"
             push "if ($splt[i]['$===']($case)) { return true; }"
-            push "} return false; })(", expr(check[1]), ")"
+            push "} return false; })(", expr(check.children[0]), ")"
           else
             if case_stmt[:cond]
               call = s(:send, check, :===, s(:arglist, s(:js_tmp, '$case')))
