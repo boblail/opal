@@ -25,6 +25,14 @@ require 'parser/ruby23'
   end
 end
 
+if RUBY_ENGINE == 'opal'
+  class << Parser::Source::Buffer
+    def recognize_encoding(s)
+      Encoding::UTF_8
+    end
+  end
+end
+
 module Opal
   class Parser < ::Parser::Ruby23
     def parse(source, file = '(string)')

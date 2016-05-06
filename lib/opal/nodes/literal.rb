@@ -111,6 +111,11 @@ module Opal
           self.value = value.updated(nil, parts)
           flags.delete('x')
         end
+
+        if value.type == :str
+          # Replacing \A -> ^, \z -> $, required for the parser gem
+          self.value = s(:str, value.children[0].gsub("\\A", "^").gsub("\\z", "$"))
+        end
       end
 
       def raw_value
