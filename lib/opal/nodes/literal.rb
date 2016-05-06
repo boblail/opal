@@ -72,14 +72,23 @@ module Opal
       children :value, :flags
 
       def compile
-        case value
-        when ''
+        if value == ''
           push('/(?:)/')
-        when %r{\?<\w+\>}
-          message = "named captures are not supported in javascript: #{value.inspect}"
-          push "self.$raise(new SyntaxError('#{message}'))"
         else
-          push "#{Regexp.new(value).inspect}#{flags}"
+          # push "#{Regexp.new(value).inspect}#{flags}"
+          escaped = value.dup
+          escaped.gsub!("\\", "\\\\\\\\")
+          escaped.gsub!("\n", "\\n\\\n")
+          escaped.gsub!("'", "\\\\'")
+          unsupported = /[^gimx]/.match flags
+          raise SyntaxError, "unknown regexp flag '#{unsupported[0]}' in /#{value}/#{flags}" if unsupported
+          options = 0
+          if flags
+            options = options | Regexp::IGNORECASE if flags.include?("i")
+            options = options | Regexp::EXTENDED if flags.include?("x")
+            options = options | Regexp::MULTILINE if flags.include?("m")
+          end
+          push "$scope.Regexp.$new('#{escaped}', #{options})"
         end
       end
     end

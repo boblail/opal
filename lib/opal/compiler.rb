@@ -161,7 +161,8 @@ module Opal
 
       @result = @fragments.map(&:code).join('')
     rescue Exception => error
-      message = "An error occurred while compiling: #{self.file}\n#{error.message}"
+      _source = self.file == "(file)" ? @source.inspect : self.file
+      message = "An error occurred while compiling: #{_source}\n#{error.message}"
       raise error.class, message, error.backtrace
     end
 

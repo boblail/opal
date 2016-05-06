@@ -1057,7 +1057,7 @@ class String < `String`
     %x{
       if (!pattern.$$is_regexp) {
         pattern = #{Opal.coerce_to(`pattern`, String, :to_str)};
-        pattern = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        pattern = new XRegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
       }
 
       var result = pattern.exec(self);

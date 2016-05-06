@@ -1,7 +1,8 @@
 class RegexpError < StandardError; end
 
-class Regexp < `RegExp`
+class Regexp < `XRegExp`
   IGNORECASE = 1
+  EXTENDED = 2
   MULTILINE = 4
 
   `def.$$is_regexp = true`
@@ -43,7 +44,7 @@ class Regexp < `RegExp`
         is_first_part_array = parts[0].$$is_array;
         if (parts.length > 1 && is_first_part_array) {
           #{raise TypeError, 'no implicit conversion of Array into String'}
-        }        
+        }
         // deal with splat issues (related to https://github.com/opal/opal/issues/858)
         if (is_first_part_array) {
           parts = parts[0];
@@ -72,10 +73,10 @@ class Regexp < `RegExp`
       new(`quoted_validated`.join('|'), `options`)
     end
 
-    def new(regexp, options = undefined)
+    def new(regexp, options = undefined, lang = nil)
       %x{
         if (regexp.$$is_regexp) {
-          return new RegExp(regexp);
+          return new XRegExp(regexp);
         }
 
         regexp = #{Opal.coerce_to!(regexp, String, :to_str)};
@@ -85,12 +86,13 @@ class Regexp < `RegExp`
         }
 
         if (options === undefined || #{!options}) {
-          return new RegExp(regexp);
+          return new XRegExp(regexp);
         }
 
         if (options.$$is_number) {
           var temp = '';
           if (#{IGNORECASE} & options) { temp += 'i'; }
+          if (#{EXTENDED} & options) { temp += 'x'; }
           if (#{MULTILINE}  & options) { temp += 'm'; }
           options = temp;
         }
@@ -98,13 +100,13 @@ class Regexp < `RegExp`
           options = 'i';
         }
 
-        return new RegExp(regexp, options);
+        return new XRegExp(regexp, options);
       }
     end
   end
 
   def ==(other)
-    `other.constructor == RegExp && self.toString() === other.toString()`
+    `other.constructor == XRegExp && self.toString() === other.toString()`
   end
 
   def ===(string)
@@ -155,7 +157,7 @@ class Regexp < `RegExp`
       }
 
       // global RegExp maintains state, so not using self/this
-      var md, re = new RegExp(source, flags + (self.ignoreCase ? 'i' : ''));
+      var md, re = new XRegExp(source, flags + (self.multiline ? 'm' : '') + (self.ignoreCase ? 'i' : ''));
 
       while (true) {
         md = re.exec(string);
@@ -176,25 +178,45 @@ class Regexp < `RegExp`
   end
 
   def source
-    `self.source`
+    `self.xregexp.source`
+  end
+
+  def flags
+    `self.xregexp.flags`
+  end
+
+  def names
+    re = self
+    %x{
+        if (re.xregexp.captureNames == null) {
+          return nil
+        }
+        else {
+          return re.xregexp.captureNames
+        }
+      }
   end
 
   def options
-    # Flags would be nice to use with this, but still experimental - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/flags
-    %x{
-      if (self.uninitialized) {
-        #{raise TypeError, 'uninitialized Regexp'}
-      }
-      var result = 0;
-      // should be supported in IE6 according to https://msdn.microsoft.com/en-us/library/7f5z26w4(v=vs.94).aspx
-      if (self.multiline) {
-        result |= #{MULTILINE};
-      }
-      if (self.ignoreCase) {
-        result |= #{IGNORECASE};
-      }
-      return result;
-    }
+    result = 0
+    result = result | IGNORECASE if `self.ignoreCase`
+    result = result | EXTENDED if @extended
+    result = result | MULTILINE if `self.multiline`
+    # # Flags would be nice to use with this, but still experimental - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/flags
+    # %x{
+    #   if (self.uninitialized) {
+    #     #{raise TypeError, 'uninitialized Regexp'}
+    #   }
+    #   var result = 0;
+    #   // should be supported in IE6 according to https://msdn.microsoft.com/en-us/library/7f5z26w4(v=vs.94).aspx
+    #   if (self.multiline) {
+    #     result |= #{MULTILINE};
+    #   }
+    #   if (self.ignoreCase) {
+    #     result |= #{IGNORECASE};
+    #   }
+    #   return result;
+    # }
   end
 
   def casefold?
@@ -219,23 +241,33 @@ class MatchData
     @pre_match  = `match_groups.input.slice(0, match_groups.index)`
     @post_match = `match_groups.input.slice(match_groups.index + match_groups[0].length)`
     @matches    = []
+    @named_matches = {}
 
-    %x{
-      for (var i = 0, length = match_groups.length; i < length; i++) {
-        var group = match_groups[i];
+    names = regexp.names
 
-        if (group == null) {
-          #@matches.push(nil);
-        }
-        else {
-          #@matches.push(group);
-        }
-      }
-    }
+    match_groups.each_index do |i|
+      if `match_groups[i] == null`
+        @matches << nil
+      else
+        @matches << match_groups[i]
+      end
+      if i > 0 && !names.nil?
+        @named_matches[names[i-1]] = i
+      end
+    end
+    self
   end
 
   def [](*args)
-    @matches[*args]
+    if args.length == 1 && (args[0].is_a? String) #FIXME: Should also include: || args[0].is_a? Symbol
+      if @named_matches.has_key? args[0]
+        @matches[@named_matches[args[0]]]
+      else
+        raise IndexError, "undefined group name reference: #{args[0]}"
+      end
+    else
+      @matches[*args]
+    end
   end
 
   def offset(n)
@@ -298,6 +330,10 @@ class MatchData
   end
 
   alias size length
+
+  def names
+    @regexp.names
+  end
 
   def to_a
     @matches
