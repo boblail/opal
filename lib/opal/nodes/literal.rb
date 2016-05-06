@@ -69,20 +69,69 @@ module Opal
     class RegexpNode < Base
       handle :regexp
 
-      children :value, :flags
+      attr_accessor :value, :flags
+
+      def initialize(*)
+        super
+        extract_flags_and_value
+      end
 
       def compile
-        # case value
-        # when ''
-        #   push('/(?:)/')
-        # when %r{\?<\w+\>}
-        #   message = "named captures are not supported in javascript: #{value.inspect}"
-        #   push "self.$raise(new SyntaxError('#{message}'))"
-        # else
-          # push "#{Regexp.new(value).inspect}#{flags}"
-          # FIXME
-          push "/()/"
-        # end
+        push "new RegExp(", expr(value), ", '#{flags.join}')"
+      end
+
+      def extract_flags_and_value
+        *values, flags_sexp = *children
+        self.flags = flags_sexp.children.map(&:to_s)
+
+        case values.length
+        when 0
+          # empty regexp, we can process it inline
+          self.value = s(:str, '')
+        when 1
+          # simple plain regexp, we can put it inline
+          self.value = values[0]
+        else
+          self.value = s(:dstr, *values)
+        end
+
+        # trimming when //x provided
+        # required by parser gem, but JS doesn't support 'x' flag
+        if flags.include?('x')
+          parts = value.children.map do |part|
+            if part.type == :str
+              trimmed_value = part.children[0].gsub(/\A\s*\#.*/, '').gsub(/\s/, '')
+              # binding.pry
+              s(:str, trimmed_value)
+            else
+              part
+            end
+          end
+
+          self.value = value.updated(nil, parts)
+          flags.delete('x')
+        end
+      end
+
+      def raw_value
+        self.value = @sexp.loc.expression.source
+      end
+    end
+
+    # $_ = 'foo'; call if /foo/
+    # s(:if, s(:match_current_line, /foo/, true))
+    class MatchCurrentLineNode < Base
+      handle :match_current_line
+
+      children :regexp
+
+      # Here we just convert it to
+      # ($_ =~ regexp)
+      # and let :send node to handle it
+      def compile
+        gvar_sexp = s(:gvar, :$_)
+        send_node = s(:send, gvar_sexp, :=~, regexp)
+        push expr(send_node)
       end
     end
 
@@ -152,10 +201,10 @@ module Opal
       handle :dstr
 
       def compile
-        push '"" + '
+        push '""'
 
         children.each_with_index do |part, idx|
-          push " + " unless idx == 0
+          push " + "
 
           # if String === part
           #   push part.inspect

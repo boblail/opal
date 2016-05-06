@@ -152,8 +152,8 @@ module Opal
 
       parsed = begin
         @parser.parse(@buffer)
-      rescue Parser::SyntaxError => error
-        raise SyntaxError, error.message, error.backtrace
+      rescue ::Parser::SyntaxError => error
+        raise ::SyntaxError, error.message, error.backtrace
       end
 
       @sexp = s(:top, parsed || s(:nil))
