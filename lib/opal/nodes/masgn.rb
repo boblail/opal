@@ -3,7 +3,7 @@ require 'opal/nodes/base'
 module Opal
   module Nodes
     class MassAssignNode < Base
-      SIMPLE_ASSIGNMENT = [:lvasgn, :ivasgn, :lvar, :gvasgn, :cdecl]
+      SIMPLE_ASSIGNMENT = [:lvasgn, :ivasgn, :lvar, :gvasgn, :cdecl, :casgn]
 
       handle :masgn
       children :lhs, :rhs
@@ -16,13 +16,6 @@ module Opal
           rhs_len = rhs.children.any? { |c| c.type == :splat } ? nil : rhs.children.size
           compile_masgn(lhs.children, array, rhs_len)
           push ", #{array}" # a mass assignment evaluates to the RHS
-        elsif rhs.type == :to_ary || rhs.type == :lvar || rhs.type == :send || rhs.type == :nil || rhs.type == :block || rhs.type == :ivar
-          retval = scope.new_temp
-          push "#{retval} = ", expr(rhs)
-          push ", #{array} = Opal.to_ary(#{retval})"
-          compile_masgn(lhs.children, array)
-          push ", #{retval}"
-          scope.queue_temp(retval)
         elsif rhs.type == :begin
           retval = scope.new_temp
           wrapped_rhs = rhs.updated(nil, nil, meta: { force_wrap: true })
@@ -35,8 +28,16 @@ module Opal
           push "#{array} = Opal.to_a(", expr(rhs.children[0]), ")"
           compile_masgn(lhs.children, array)
           push ", #{array}"
+        # elsif rhs.type == :to_ary || rhs.type == :lvar || rhs.type == :send || rhs.type == :nil || rhs.type == :block || rhs.type == :ivar
         else
-          raise "unsupported mlhs type"
+          retval = scope.new_temp
+          push "#{retval} = ", expr(rhs)
+          push ", #{array} = Opal.to_ary(#{retval})"
+          compile_masgn(lhs.children, array)
+          push ", #{retval}"
+          scope.queue_temp(retval)
+          # binding.pry
+          # raise "unsupported mlhs type"
         end
 
         scope.queue_temp(array)

@@ -169,10 +169,11 @@ module Opal
           #   push ")"
           elsif part.type == :begin
             push expr(compiler.returns(part))
-          elsif part.type == :dstr || part.type == :ivar
-            push "(", expr(part), ")"
+          # elsif part.type == :dstr || part.type == :ivar
           else
-            raise "Bad dstr part #{part.inspect}"
+            push "(", expr(part), ")"
+          # else
+          #   raise "Bad dstr part #{part.inspect}"
           end
 
           wrap '(', ')' if recv?
